@@ -53,17 +53,16 @@ void setup() {
   ------------
 */
 void loop() {
-  long irValue = particleSensor.getIR(); // センサから値を取得
+  long irValue = particleSensor.getIR(); // IR値を読み取るとセンサーに指があるか知ることができるIRとは赤外線のこと
 
-  if (checkForBeat(irValue) == true) { // 心拍数を検出した場合
+  if (checkForBeat(irValue) == true) {    //IR値がTrueだったら
+    long delta = millis() - lastBeat;   // デルタ = millis() - lastBeat
+    // millis() : Arduinoボードがプログラムの実行を開始した時から現在までの時間をミリ秒単位で返します。
+    lastBeat = millis();                // lastBeat に心拍を測定した時間を代入
 
-    //
-    long delta = millis() - lastBeat;   // 前回心拍を測定してからどのくらい経過したか = 現在の経過時間 - 心拍を最後に取得した時間
-    lastBeat = millis();                // 現在の経過時間でlastBeatを上書き
+    beatsPerMinute = 60 / (delta / 1000.0); // 一分間の心拍の計算
 
-    beatsPerMinute = 60 / (delta / 1000.0); // 60 ÷ (前回心拍を測定してからどのくらい経過したか ÷ 60)
-
-    if (beatsPerMinute < 255 && beatsPerMinute > 20) {
+    if (beatsPerMinute < 255 && beatsPerMinute > 20) { // 平均の計算
       rates[rateSpot++] = (byte)beatsPerMinute; // 読み取りを配列に格納する
       rateSpot %= RATE_SIZE; // ラップ変数
 

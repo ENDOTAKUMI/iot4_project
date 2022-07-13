@@ -15,6 +15,9 @@
 #include "MAX30105.h"  // MAX30105.h センサのライブラリ
 #include "heartRate.h" // 心拍数算出アルゴリズム
 
+#include <WiFi.h>
+#include <WebServer.h>
+
 // センサを定義する変数
 MAX30105 particleSensor;
 
@@ -23,7 +26,13 @@ byte rates[RATE_SIZE];    // 心拍数の配列、(RATE_SIZEの数だけ作成)
 byte rateSpot = 0;        // ラップ変数
 long lastBeat = 0;        // 最後の心拍が発生した時刻
 float beatsPerMinute;     // 1分あたりの心拍
-int beatAvg;              // 心拍の平均
+int beatAvg = 0;              // 心拍の平均
+
+// アクセスポイント情報
+const char* ssid = "ENDO Takumi(iPhone)";   // SSID
+const char* passwd = "08021323772"; // ネットワークパスワード
+
+WebServer server(80);
 
 /*
   ------------
@@ -40,6 +49,28 @@ void setup() {
     while (1);
   }
 
+  WiFi.begin(ssid, passwd);               // アクセスポイント接続のためのIDとパスワードの設定
+  while (WiFi.status() != WL_CONNECTED) { // 接続状態の確認
+    delay(300);                           // 接続していなければ0.3秒待つ
+    Serial.print(".");                   // 接続しなかったらシリアルモニタに「.」と表示
+  }
+
+  // 通信が可能となったら各種情報を表示する
+  Serial.println("");               //シリアルモニタ改行
+  Serial.println("WiFi Connected"); //接続したらシリアルモニタに「WiFi Connected」と表示
+  Serial.print("IP Address : ");    //シリアルモニタに表示
+  Serial.println(WiFi.localIP());   //割り当てられたIPアドレスをシリアルモニタに表示
+
+  // serverにアクセスしたときの処理関数
+  server.on("/", handleSample);      //TOPページのアドレスにアクセスしたときの処理関数
+  server.onNotFound(handleNotFound); //存在しないアドレスにアクセスしたときの処理関数
+
+  // WebServerを起動、server(80)で作成したサーバー
+  server.begin();                    //WebServer起動
+
+
+
+
   Serial.println("人差し指をセンサーに当て、一定の圧力を加えてください。");
 
   particleSensor.setup();                    // センサーを初期化する
@@ -53,6 +84,7 @@ void setup() {
   ------------
 */
 void loop() {
+  server.handleClient();
   long irValue = particleSensor.getIR(); // IR値を読み取るとセンサーに指があるか知ることができるIRとは赤外線のこと
 
   if (checkForBeat(irValue) == true) {    //IR値がTrueだったら
@@ -87,4 +119,31 @@ void loop() {
   }
 
   Serial.println();
+}
+
+// TOPページにアクセスしたきの処理関数
+void handleSample() {
+  String html;
+
+  //HTML記述
+  html = "<!DOCTYPE html>";
+  html += "<html lang='ja'>";
+  html += "<head>";
+  html += "<meta charset=\"utf-8\">";
+  html += "<meta http-equiv=\"refresh\" content=\"5\">";
+  html += "<title>Lesson 04</title>";
+  html += "</head>";
+  html += "<body>";
+  html += "<h1>Hello omoroya!!</h1>";
+  html += "<p><h2>beatAvg: " + String(beatAvg) + " </p>";
+  html += "</body>";
+  html += "</html>";
+
+  // HTMLを出力する
+  server.send(200, "text/html", html);
+}
+
+// 存在しないアドレスへアクセスしたときの処理関数
+void handleNotFound(void) {
+  server.send(404, "text/plain", "Not Found");
 }
